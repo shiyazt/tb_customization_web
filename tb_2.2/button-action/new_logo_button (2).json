@@ -1,0 +1,60 @@
+{
+  "widget": {
+    "isSystemType": false,
+    "bundleAlias": "custom",
+    "typeAlias": "test2",
+    "type": "static",
+    "title": "New widget",
+    "sizeX": 5,
+    "sizeY": 3,
+    "config": {
+      "datasources": [],
+      "timewindow": {
+        "realtime": {
+          "timewindowMs": 60000
+        }
+      },
+      "showTitle": false,
+      "backgroundColor": "#f8f8f8",
+      "color": "rgba(0, 0, 0, 0.87)",
+      "padding": "5px",
+      "settings": {
+        "defaultColor": "#f61329",
+        "buttonLabel": "Update Calibration ",
+        "buttonLogo": "settings"
+      },
+      "title": "New Logo Button",
+      "dropShadow": true,
+      "enableFullscreen": false,
+      "enableDataExport": false,
+      "widgetStyle": {},
+      "titleStyle": {
+        "fontSize": "16px",
+        "fontWeight": 400
+      },
+      "useDashboardTimewindow": true,
+      "showLegend": false,
+      "actions": {
+        "rowClick": [
+          {
+            "id": "349a2fc9-f4b2-7d32-fc0d-d07ac028c30a",
+            "name": "Update Details",
+            "icon": "more_horiz",
+            "type": "custom",
+            "customFunction": "var $injector = widgetContext.$scope.$injector;\nvar types = $injector.get('types'),\n    $q = $injector.get('$q'),\n    $mdDialog = $injector.get('$mdDialog'),\n    $filter = $injector.get('$filter'),\n    $document = $injector.get('$document');\n    \nvar attributeService = $injector.get('attributeService');\nvar entityService = $injector.get('entityService');\nvar state = widgetContext.stateController.getStateParamsByStateId(\"device_state\");\nvar entity = state.entityId;\n\n\n\n//controller\n\nfunction InfoDialogController($mdDialog) {\n    let vm = this;\n    vm.loading = true;\n    vm.entityTitle = 'Update Details';\n    let cal_ts = new Date();\n    vm.cal_date = cal_ts.getDate();\n    vm.cal_month = cal_ts.getMonth();\n    vm.cal_year = cal_ts.getFullYear();\n    \n    vm.entityName = state.entityName;\n    \n    vm.cal_freq = 300;\n    \n    vm.close = () => {\n        $mdDialog.cancel();   \n    }\n    \n    console.log(state);\n    \n    let items = ['cal_freq','cal_prev']\n    \n    attributeService.getEntityAttributesValues(entity.entityType, entity.id, 'SERVER_SCOPE', items)\n    .then(\n        function success(item) {\n            // console.log(item);\n            vm.cal_freq = item.filter(item => item.key === 'cal_freq')[0].value;\n            let calPrev = item.filter(item => item.key === 'cal_prev')[0].value;\n            vm.cal_prev = new Date( calPrev * 1000).toLocaleString('en-US');\n            \n            let calNext = calPrev + (vm.cal_freq * 86400);\n            \n            vm.cal_next = new Date( calNext * 1000).toLocaleString('en-US');\n            // vm.cal_freq = item[0].value;\n            vm.loading = false;\n        },\n        function fail(msg) {\n            console.log(msg);\n            vm.loading = false;\n        }\n    );\n    \n    \n    vm.saveAttribute = () => {\n        vm.loading = true;\n        \n        let items = [\n            {\n                key : 'cal_freq',\n                value : vm.cal_freq\n            }, \n            {\n                key : 'cal_prev',\n                value : ((new Date(`${vm.cal_date}/${vm.cal_month}/${vm.cal_year}`)).getTime())/1000\n            }\n        ];\n        \n        attributeService.saveEntityAttributes(entity.entityType, entity.id, 'SERVER_SCOPE', items)\n        .then(\n            function success(item) {\n                console.log(item);\n                vm.loading = false;\n            },\n            function fail(msg) {\n                console.log(msg);\n                vm.loading = false;\n            }\n        );\n    }\n}\n\n//template\n\nvar infoDialogTemplate =    '<md-dialog style=\"width: 500px;\" aria-label=\"Info\">' +\n                                '<md-toolbar>'+\n                                    '<div class=\"md-toolbar-tools\">'+ \n                                        '<h2>{{vm.entityTitle}}</h2>'+\n                                        '<span flex></span>'+\n                                        '<md-button class=\"md-icon-button\" ng-click=\"vm.close()\">'+\n                                            '<ng-md-icon icon=\"close\" aria-label=\"Close\"></ng-md-icon>'+\n                                        '</md-button>'+\n                                    '</div>' +\n                                '</md-toolbar>'+\n                                '<md-progress-linear class=\"md-warn\" md-mode=\"indeterminate\" ng-disabled=\"!vm.loading\" ng-show=\"vm.loading\"></md-progress-linear>'+\n                                '<span style=\"min-height: 10px;\" ></span>'+\n                                '<md-dialog-content style=\"padding:5px;\" >'+\n                                    '<div style=\"border: 2px solid #ffc107; border-radius : 10px; margin : 10px 5px 15px 5px; backround-color: #ffecb3; padding: 5px;\">' +\n                                        '<div style=\"font-weight: 500; margin: 10px auto 10px auto;\">Previous Calibration done on {{vm.cal_prev}}</div>' +\n                                        '<div style=\"font-weight: 500; margin: 10px auto 10px auto;color : red; \">Next Calibration due on {{vm.cal_next}}</div>' +\n                                    '</div>' +\n                                    \n                                    '<div style=\"text-decoration : underline; margin : 10px auto 0px auto;\">Calibaration done on</div>'+\n                                    '<div layout=\"row\" layout-align=\"center\" flex>' +\n                                    \n                                        '<md-input-container flex=\"20\">' +\n                                            '<label>Date</label>' +\n                                            '<input ng-model=\"vm.cal_date\" type=\"Number\">' +\n                                        '</md-input-container>'+\n                                        \n                                        '<md-input-container flex=\"20\">' +\n                                            '<label>Month</label>' +\n                                            '<input type=\"Number\" ng-model=\"vm.cal_month\">' +\n                                        '</md-input-container>'+\n                                        \n                                        '<md-input-container flex=\"20\">' +\n                                            '<label>Year</label>' +\n                                            '<input type=\"Number\" ng-model=\"vm.cal_year\">' +\n                                        '</md-input-container>'+\n                                    \n                                    '</div>' +\n                                    \n                                    '<div style=\"text-decoration : underline; margin : 10px auto 0px auto;\">Calibration Frequency</div>' + \n                                    '<div layout=\"row\" layout-align=\"center\" flex>' +\n                                        '<md-input-container flex=\"50\">' +\n                                            '<label>Frequency</label>' +\n                                            '<input type=\"Number\" ng-model=\"vm.cal_freq\">' +\n                                            '<div>Frequency in days</div>' +\n                                        '</md-input-container>'+\n                                    '</div>'+\n                                    \n                                '</md-dialog-content>'+\n                                \n                                '<md-dialog-actions>' +\n                                    '<md-button ng-click=\"vm.saveAttribute()\">Save</md-button>' +\n                                    '<md-button color=\"secondary\" ng-click=\"vm.close()\">Cancel</md-button>' +\n                                '</md-dialog-actions>'+\n                                \n                            '</md-dialog>';\n                            \n                            \nshowInfoDialog();\n\nfunction showInfoDialog() {\n    $mdDialog.show({\n      controller: ['$mdDialog', InfoDialogController],\n      controllerAs: 'vm',\n      template: infoDialogTemplate,\n      parent: angular.element($document[0].body),\n      targetEvent: $event,\n      clickOutsideToClose: false,\n      fullscreen: true\n    });\n}\n\n\n"
+          }
+        ]
+      }
+    },
+    "id": "0c046631-901e-f304-54ab-11cbc6b7720b"
+  },
+  "aliasesInfo": {
+    "datasourceAliases": {},
+    "targetDeviceAliases": {}
+  },
+  "originalSize": {
+    "sizeX": 5,
+    "sizeY": 3
+  },
+  "originalColumns": 24
+}
